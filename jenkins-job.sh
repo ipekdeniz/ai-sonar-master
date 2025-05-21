@@ -24,8 +24,8 @@ log "Issue Types: $ISSUE_TYPES"
 log "Workspace: $WORKSPACE"
 
 # Define API URLs
-API_URL="http://172.20.10.6:3000/api/analyze"
-RESULTS_URL="http://172.20.10.6:3000/api/results.zip"
+API_URL="http://YOUR-API-URL:3000/api/analyze"
+RESULTS_URL="http://YOUR-API-URL:3000/api/results.zip"
 
 # Create request body
 if [ -n "$ISSUE_KEY" ]; then
