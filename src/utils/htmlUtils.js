@@ -1,13 +1,14 @@
 const hljs = require('highlight.js');
 const { SEVERITY_COLORS, TYPE_ICONS } = require('../config/constants');
 
-function escapeHtml(text) {
-    return text
+function escapeHtml(str) {
+    if (!str) return '';
+    return str
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+        .replace(/'/g, '&#39;');
 }
 
 function formatCodeBlock(code, language) {
@@ -24,9 +25,17 @@ function formatSolution(solution) {
     });
 }
 
+function getSeverityColor(severity) {
+    return SEVERITY_COLORS[severity] || SEVERITY_COLORS.DEFAULT;
+}
+
+function getTypeIcon(type) {
+    return TYPE_ICONS[type] || TYPE_ICONS.DEFAULT;
+}
+
 function generateHtmlTemplate(issue, solution) {
-    const severityColor = SEVERITY_COLORS[issue.severity] || '#666';
-    const typeIcon = TYPE_ICONS[issue.type] || '⚠️';
+    const severityColor = getSeverityColor(issue.severity);
+    const typeIcon = getTypeIcon(issue.type);
     const formattedSolution = formatSolution(solution);
 
     return `
@@ -35,8 +44,7 @@ function generateHtmlTemplate(issue, solution) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sonar Issue Analysis - ${issue.key}</title>
-    <link rel="stylesheet" href="/static/github.min.css">
+    <title>Issue Analysis - ${issue.key}</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
@@ -138,15 +146,141 @@ function generateHtmlTemplate(issue, solution) {
         <h2>Solution</h2>
         ${formattedSolution}
     </div>
-
-    <script src="/static/highlight.js"></script>
 </body>
 </html>`;
+}
+
+function generateHtmlReport(issue) {
+    const htmlContent = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Issue Report - ${escapeHtml(issue.key)}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .issue-key {
+            font-size: 24px;
+            color: #333;
+            margin: 0;
+        }
+        .issue-type {
+            color: #666;
+            margin: 5px 0;
+        }
+        .details {
+            margin: 20px 0;
+        }
+        .detail-item {
+            margin: 10px 0;
+        }
+        .detail-label {
+            font-weight: bold;
+            color: #555;
+        }
+        .message {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        .solution {
+            background-color: #e8f5e9;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        .solution p {
+            color: #333;
+            margin: 10px 0;
+        }
+        pre, code {
+            background: #272822;
+            color: #f8f8f2;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Fira Mono', 'Consolas', 'Monaco', monospace;
+            font-size: 15px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        .severity-high {
+            color: #d32f2f;
+        }
+        .severity-medium {
+            color: #f57c00;
+        }
+        .severity-low {
+            color: #7cb342;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="issue-key">${escapeHtml(issue.key)}</h1>
+            <p class="issue-type">Type: ${escapeHtml(issue.type)}</p>
+        </div>
+        
+        <div class="details">
+            <div class="detail-item">
+                <span class="detail-label">Severity:</span>
+                <span class="severity-${issue.severity ? escapeHtml(issue.severity.toLowerCase()) : ''}">${escapeHtml(issue.severity)}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Component:</span>
+                <span>${escapeHtml(issue.component)}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Line:</span>
+                <span>${escapeHtml(issue.line ? issue.line.toString() : '')}</span>
+            </div>
+        </div>
+
+        <div class="message">
+            <h3>Issue Message</h3>
+            <p>${escapeHtml(issue.message)}</p>
+        </div>
+
+        ${issue.solution ? `
+        <div class="solution">
+            <h3>Proposed Solution</h3>
+            ${formatSolution(issue.solution)}
+        </div>
+        ` : ''}
+    </div>
+</body>
+</html>`;
+
+    return htmlContent;
 }
 
 module.exports = {
     escapeHtml,
     formatCodeBlock,
     formatSolution,
-    generateHtmlTemplate
+    getSeverityColor,
+    getTypeIcon,
+    generateHtmlTemplate,
+    generateHtmlReport
 }; 

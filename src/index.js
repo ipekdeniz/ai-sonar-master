@@ -37,6 +37,8 @@ highlightJsFiles.forEach(file => {
 
 // Static dosyaları serve et
 app.use('/static', express.static(STATIC_DIR));
+// Statik dosyaları sunmak için results klasörünü yapılandır
+app.use('/results', express.static(PATHS.RESULTS_DIR));
 
 // Swagger tanımlaması
 const swaggerOptions = {

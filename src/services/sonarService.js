@@ -11,20 +11,30 @@ class SonarService {
         });
     }
 
-    async getIssues(projectKey, issueTypes) {
+    async getIssues(projectKey, issueKey, issueTypes) {
         try {
-            const response = await this.client.get('/api/issues/search', {
-                params: {
-                    componentKeys: projectKey,
-                    types: issueTypes.join(','),
-                    statuses: 'OPEN,CONFIRMED,REOPENED',
-                    ps: 100
-                }
-            });
+            // If issueTypes is undefined, use empty array
+            const types = issueTypes ? (typeof issueTypes === 'string' ? issueTypes.split(',') : issueTypes) : [];
+            
+            const params = {
+                componentKeys: projectKey,
+                statuses: 'OPEN,CONFIRMED,REOPENED',
+                ps: 100
+            };
 
+            // If issueKey exists, get only that issue
+            if (issueKey) {
+                params.issues = issueKey;
+            }
+            // If types array is not empty, add types parameter
+            else if (types.length > 0) {
+                params.types = types.join(',');
+            }
+
+            const response = await this.client.get('/api/issues/search', { params });
             return response.data.issues;
         } catch (error) {
-            console.error('Error fetching Sonar issues:', error.message);
+            console.error('Error fetching Sonar issues:', error);
             throw error;
         }
     }

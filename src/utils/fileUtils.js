@@ -9,17 +9,13 @@ function ensureDirectoryExists(dirPath) {
 }
 
 function getIssueDirectory(projectKey, issueKey) {
-    const issueDir = path.join(PATHS.RESULTS_DIR, projectKey, issueKey);
-    ensureDirectoryExists(issueDir);
-    return issueDir;
-}
-
-function writeFile(filePath, content) {
-    fs.writeFileSync(filePath, content);
+    // Directory for issue details
+    const dirPath =  path.join(PATHS.RESULTS_DIR, projectKey, issueKey);
+    ensureDirectoryExists(dirPath);
+    return dirPath;
 }
 
 module.exports = {
     ensureDirectoryExists,
-    getIssueDirectory,
-    writeFile
+    getIssueDirectory
 }; 
