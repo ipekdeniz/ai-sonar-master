@@ -1,47 +1,39 @@
 const axios = require('axios');
 
-class OllamaService {
-    constructor() {
-        this.client = axios.create({
-            baseURL: process.env.OLLAMA_URL
+const OLLAMA_URL = process.env.OLLAMA_URL;
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL;
+
+/**
+ * Gets AI-generated solution for a Sonar issue using Ollama
+ * @param {Object} issue - Sonar issue object
+ * @returns {Promise<string>} AI-generated solution
+ */
+async function getOllamaSolution(issue) {
+    try {
+        const prompt = `Analyze this Sonar issue and provide a solution:
+        Type: ${issue.type}
+        Severity: ${issue.severity}
+        Message: ${issue.message}
+        Component: ${issue.component}
+        Line: ${issue.line}
+        
+        Please provide a detailed solution:`;
+
+        console.log(`Analyzing issue: ${issue.key} - ${issue.message}`);
+        const response = await axios.post(`${OLLAMA_URL}/api/generate`, {
+            model: OLLAMA_MODEL,
+            prompt: prompt,
+            stream: false
         });
-    }
 
-    async analyzeIssue(issue) {
-        try {
-            const prompt = this.buildPrompt(issue);
-            const response = await this.client.post('/api/generate', {
-                model: process.env.OLLAMA_MODEL,
-                prompt: prompt,
-                stream: false
-            });
-
-            return response.data.response;
-        } catch (error) {
-            console.error('Error analyzing issue with Ollama:', error.message);
-            throw error;
-        }
-    }
-
-    buildPrompt(issue) {
-        return `
-Analyze this Sonar issue and provide a detailed solution:
-
-Issue Type: ${issue.type}
-Severity: ${issue.severity}
-Message: ${issue.message}
-Component: ${issue.component}
-Line: ${issue.line}
-
-Please provide:
-1. A detailed explanation of the issue
-2. A step-by-step solution
-3. Code examples showing how to fix the issue
-4. Best practices to prevent similar issues
-
-Format your response with markdown code blocks for code examples.
-`;
+        console.log(`Analysis completed for issue: ${issue.key}`);
+        return response.data.response;
+    } catch (error) {
+        console.error('Error getting Ollama solution:', error.message);
+        throw error;
     }
 }
 
-module.exports = new OllamaService(); 
+module.exports = {
+    getOllamaSolution
+}; 

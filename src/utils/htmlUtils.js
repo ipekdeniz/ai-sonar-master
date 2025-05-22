@@ -1,6 +1,11 @@
 const hljs = require('highlight.js');
 const { SEVERITY_COLORS, TYPE_ICONS } = require('../config/constants');
 
+/**
+ * Escapes HTML special characters
+ * @param {string} str - String to escape
+ * @returns {string} Escaped string
+ */
 function escapeHtml(str) {
     if (!str) return '';
     return str
@@ -33,7 +38,7 @@ function getTypeIcon(type) {
     return TYPE_ICONS[type] || TYPE_ICONS.DEFAULT;
 }
 
-function generateHtmlTemplate(issue, solution) {
+function generateHtmlTemplate(projectKey, issue, solution) {
     const severityColor = getSeverityColor(issue.severity);
     const typeIcon = getTypeIcon(issue.type);
     const formattedSolution = formatSolution(solution);
@@ -44,120 +49,12 @@ function generateHtmlTemplate(issue, solution) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Issue Analysis - ${issue.key}</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        .header {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-        .issue-info {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-        .info-item {
-            background: #fff;
-            padding: 15px;
-            border-radius: 6px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .info-item h3 {
-            margin: 0 0 10px 0;
-            color: #666;
-            font-size: 0.9em;
-            text-transform: uppercase;
-        }
-        .info-item p {
-            margin: 0;
-            font-size: 1.1em;
-        }
-        .severity {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 4px;
-            color: white;
-            font-weight: bold;
-        }
-        .solution {
-            background: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .code-block {
-            background: #f6f8fa;
-            border-radius: 6px;
-            padding: 16px;
-            overflow-x: auto;
-            margin: 16px 0;
-        }
-        .code-block code {
-            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
-            font-size: 14px;
-            line-height: 1.5;
-        }
-        .hljs {
-            background: transparent;
-        }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>Sonar Issue Analysis</h1>
-        <p>Issue Key: ${escapeHtml(issue.key)}</p>
-    </div>
-
-    <div class="issue-info">
-        <div class="info-item">
-            <h3>Type</h3>
-            <p>${typeIcon} ${escapeHtml(issue.type)}</p>
-        </div>
-        <div class="info-item">
-            <h3>Severity</h3>
-            <p><span class="severity" style="background-color: ${severityColor}">${escapeHtml(issue.severity)}</span></p>
-        </div>
-        <div class="info-item">
-            <h3>Component</h3>
-            <p>${escapeHtml(issue.component)}</p>
-        </div>
-        <div class="info-item">
-            <h3>Line</h3>
-            <p>${issue.line || 'N/A'}</p>
-        </div>
-    </div>
-
-    <div class="info-item">
-        <h3>Message</h3>
-        <p>${escapeHtml(issue.message)}</p>
-    </div>
-
-    <div class="solution">
-        <h2>Solution</h2>
-        ${formattedSolution}
-    </div>
-</body>
-</html>`;
-}
-
-function generateHtmlReport(issue) {
-    const htmlContent = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Issue Report - ${escapeHtml(issue.key)}</title>
+    <title>Sonar Issue Analysis - ${issue.key}</title>
+    <link rel="stylesheet" href="/static/highlight.css">
+    <script src="/static/highlight.js"></script>
+    <script src="/static/languages/javascript.js"></script>
+    <script src="/static/languages/java.js"></script>
+    <script src="/static/languages/python.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -171,108 +68,107 @@ function generateHtmlReport(issue) {
             margin: 0 auto;
             background-color: white;
             padding: 20px;
-            border-radius: 5px;
+            border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .header {
-            border-bottom: 2px solid #eee;
-            padding-bottom: 10px;
-            margin-bottom: 20px;
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px;
+            border-radius: 8px 8px 0 0;
+            margin: -20px -20px 20px -20px;
         }
-        .issue-key {
-            font-size: 24px;
-            color: #333;
-            margin: 0;
-        }
-        .issue-type {
-            color: #666;
-            margin: 5px 0;
-        }
-        .details {
-            margin: 20px 0;
-        }
-        .detail-item {
-            margin: 10px 0;
-        }
-        .detail-label {
-            font-weight: bold;
-            color: #555;
-        }
-        .message {
+        .issue-info {
             background-color: #f8f9fa;
             padding: 15px;
             border-radius: 4px;
-            margin: 20px 0;
+            margin-bottom: 20px;
         }
         .solution {
-            background-color: #e8f5e9;
+            background-color: #e8f4f8;
+            padding: 20px;
+            border-radius: 4px;
+            border-left: 4px solid #2c3e50;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            color: white;
+            font-size: 0.9em;
+            margin-right: 10px;
+        }
+        .metadata {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 20px;
+        }
+        .code-block {
+            background-color: #f8f9fa;
             padding: 15px;
             border-radius: 4px;
-            margin: 20px 0;
-        }
-        .solution p {
-            color: #333;
-            margin: 10px 0;
-        }
-        pre, code {
-            background: #272822;
-            color: #f8f8f2;
-            padding: 10px;
-            border-radius: 4px;
-            font-family: 'Fira Mono', 'Consolas', 'Monaco', monospace;
-            font-size: 15px;
             overflow-x: auto;
-            margin: 10px 0;
+            margin: 15px 0;
+            border: 1px solid #e1e4e8;
         }
-        .severity-high {
-            color: #d32f2f;
+        .code-block code {
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 14px;
+            line-height: 1.5;
         }
-        .severity-medium {
-            color: #f57c00;
+        .timestamp {
+            color: #666;
+            font-size: 0.8em;
+            text-align: right;
         }
-        .severity-low {
-            color: #7cb342;
+        .solution-text {
+            white-space: pre-wrap;
+            font-family: inherit;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1 class="issue-key">${escapeHtml(issue.key)}</h1>
-            <p class="issue-type">Type: ${escapeHtml(issue.type)}</p>
+            <h1>${typeIcon} Sonar Issue Analysis</h1>
+            <p>Project: ${escapeHtml(projectKey)}</p>
         </div>
         
-        <div class="details">
-            <div class="detail-item">
-                <span class="detail-label">Severity:</span>
-                <span class="severity-${issue.severity ? escapeHtml(issue.severity.toLowerCase()) : ''}">${escapeHtml(issue.severity)}</span>
-            </div>
-            <div class="detail-item">
-                <span class="detail-label">Component:</span>
-                <span>${escapeHtml(issue.component)}</span>
-            </div>
-            <div class="detail-item">
-                <span class="detail-label">Line:</span>
-                <span>${escapeHtml(issue.line ? issue.line.toString() : '')}</span>
-            </div>
+        <div class="issue-info">
+            <h2>Issue Details</h2>
+            <p>
+                <span class="badge" style="background-color: ${severityColor}">
+                    ${escapeHtml(issue.severity)}
+                </span>
+                <span class="badge" style="background-color: #2c3e50">
+                    ${escapeHtml(issue.type)}
+                </span>
+            </p>
+            <p><strong>Message:</strong> ${escapeHtml(issue.message)}</p>
+            <p><strong>Component:</strong> ${escapeHtml(issue.component)}</p>
+            <p><strong>Line:</strong> ${issue.line}</p>
         </div>
 
-        <div class="message">
-            <h3>Issue Message</h3>
-            <p>${escapeHtml(issue.message)}</p>
-        </div>
-
-        ${issue.solution ? `
         <div class="solution">
-            <h3>Proposed Solution</h3>
-            ${formatSolution(issue.solution)}
+            <h2>AI-Generated Solution</h2>
+            <div class="solution-text">${formattedSolution}</div>
         </div>
-        ` : ''}
+
+        <div class="metadata">
+            <p><strong>Issue Key:</strong> ${escapeHtml(issue.key)}</p>
+            <p><strong>Created:</strong> ${new Date(issue.creationDate).toLocaleString()}</p>
+            <p class="timestamp">Analysis performed: ${new Date().toLocaleString()}</p>
+        </div>
     </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', (event) => {
+            document.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightElement(block);
+            });
+        });
+    </script>
 </body>
 </html>`;
-
-    return htmlContent;
 }
 
 module.exports = {
@@ -281,6 +177,5 @@ module.exports = {
     formatSolution,
     getSeverityColor,
     getTypeIcon,
-    generateHtmlTemplate,
-    generateHtmlReport
+    generateHtmlTemplate
 }; 

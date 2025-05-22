@@ -6,7 +6,7 @@ const swaggerOptions = {
         info: {
             title: 'Sonar Issue Analyzer API',
             version: '1.0.0',
-            description: 'Sonar issue\'larını Ollama AI modeli ile analiz eden API',
+            description: 'API that analyzes Sonar issues using Ollama AI model',
             contact: {
                 name: 'API Support'
             }
@@ -23,12 +23,12 @@ const swaggerOptions = {
                     type: 'object',
                     required: ['projectKey'],
                     properties: {
-                        projectKey: { type: 'string', description: 'Sonar proje anahtarı' },
-                        issueKey: { type: 'string', description: 'Sadece bu issue anahtarı analiz edilir (opsiyonel)' },
+                        projectKey: { type: 'string', description: 'Sonar project key' },
+                        issueKey: { type: 'string', description: 'Only analyze this issue key (optional)' },
                         issueTypes: {
                             type: 'array',
                             items: { type: 'string', enum: ['BUG', 'VULNERABILITY', 'CODE_SMELL', 'SECURITY_HOTSPOT'] },
-                            description: 'Analiz edilecek issue tipleri (opsiyonel)'
+                            description: 'Issue types to analyze (optional)'
                         }
                     }
                 },

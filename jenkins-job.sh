@@ -23,9 +23,9 @@ log "Issue Key: $ISSUE_KEY"
 log "Issue Types: $ISSUE_TYPES"
 log "Workspace: $WORKSPACE"
 
-# Define API URLs
-API_URL="http://YOUR-API-URL:3000/api/analyze"
-RESULTS_URL="http://YOUR-API-URL:3000/api/results.zip"
+# Define API URLs using container names for Docker networking
+API_URL="http://$SonarAnalyzerURL:3000/api/analyze"
+RESULTS_URL="http://$SonarAnalyzerURL:3000/api/results.zip"
 
 # Create request body
 if [ -n "$ISSUE_KEY" ]; then
@@ -49,23 +49,25 @@ TEMP_RESPONSE=$(mktemp)
 curl -s -X POST \
     -H "Content-Type: application/json" \
     -H "Accept: text/event-stream" \
+    -H "Connection: keep-alive" \
     -N \
     -d "$REQUEST_BODY" \
     "$API_URL" > "$TEMP_RESPONSE" &
 
 CURL_PID=$!
 
-# Check if curl has completed
+# Initialize current event
+current_event=""
+
 while kill -0 $CURL_PID 2>/dev/null; do
     if [ -s "$TEMP_RESPONSE" ]; then
-        # Process read lines
         while IFS= read -r line; do
-            if [[ $line == data:* ]]; then
-                # Remove "data:" prefix and parse JSON
+            if [[ $line == event:* ]]; then
+                current_event=$(echo "$line" | cut -d' ' -f2)
+            elif [[ $line == data:* ]]; then
                 json_data=$(echo "$line" | sed 's/^data: //')
-                event_type=$(echo "$json_data" | grep -o '"type":"[^"]*"' | cut -d'"' -f4)
-                
-                case $event_type in
+
+                case $current_event in
                     "started")
                         log "Analysis started..."
                         ;;
@@ -74,62 +76,40 @@ while kill -0 $CURL_PID 2>/dev/null; do
                         total=$(echo "$json_data" | grep -o '"total":[0-9]*' | cut -d':' -f2)
                         issue_key=$(echo "$json_data" | grep -o '"currentIssueKey":"[^"]*"' | cut -d'"' -f4)
                         message=$(echo "$json_data" | grep -o '"message":"[^"]*"' | cut -d'"' -f4)
-                        
-                        if [ -n "$issue_key" ]; then
-                            log "Progress: $current/$total - $message"
-                        else
-                            log "Progress: $current/$total issues processed"
-                        fi
+                        log "Progress: $current/$total - $message ($issue_key)"
                         ;;
                     "issueProcessed")
                         issue_key=$(echo "$json_data" | grep -o '"issueKey":"[^"]*"' | cut -d'"' -f4)
                         status=$(echo "$json_data" | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
-                        type=$(echo "$json_data" | grep -o '"type":"[^"]*"' | cut -d'"' -f4)
+                        type=$(echo "$json_data" | grep -o '"issueType":"[^"]*"' | cut -d'"' -f4)
                         severity=$(echo "$json_data" | grep -o '"severity":"[^"]*"' | cut -d'"' -f4)
                         component=$(echo "$json_data" | grep -o '"component":"[^"]*"' | cut -d'"' -f4)
                         line=$(echo "$json_data" | grep -o '"line":[0-9]*' | cut -d':' -f2)
-                        
-                        log "----------------------------------------"
-                        log "Issue Processed: $issue_key"
-                        log "Status: $status"
-                        log "Type: $type"
-                        log "Severity: $severity"
-                        log "Component: $component"
-                        log "Line: $line"
-                        log "----------------------------------------"
+
+                        log "Issue Processed: $issue_key | $type ($severity) @ $component:$line"
                         ;;
                     "error")
-                        issue_key=$(echo "$json_data" | grep -o '"issueKey":"[^"]*"' | cut -d'"' -f4)
                         message=$(echo "$json_data" | grep -o '"message":"[^"]*"' | cut -d'"' -f4)
-                        if [ -n "$issue_key" ]; then
-                            log "Error processing issue $issue_key: $message"
-                        else
-                            log "Error: $message"
-                        fi
+                        log "Error: $message"
                         ;;
                     "complete")
                         total_issues=$(echo "$json_data" | grep -o '"totalIssues":[0-9]*' | cut -d':' -f2)
                         analyzed_issues=$(echo "$json_data" | grep -o '"analyzedIssues":[0-9]*' | cut -d':' -f2)
-                        message=$(echo "$json_data" | grep -o '"message":"[^"]*"' | cut -d'"' -f4)
                         log "=== Analysis Complete ==="
-                        log "Total Issues: $total_issues"
-                        log "Analyzed Issues: $analyzed_issues"
-                        if [ -n "$message" ]; then
-                            log "Message: $message"
-                        fi
+                        log "Total Issues: $total_issues | Analyzed: $analyzed_issues"
+                        ;;
+                    *)
+                        log "Unknown event: $current_event"
                         ;;
                 esac
             fi
         done < "$TEMP_RESPONSE"
-        
-        # Clear temporary file and recreate
         > "$TEMP_RESPONSE"
     fi
-    
     sleep 0.5
 done
 
-wait $CURL_PID
+wait $CURL_PID || true
 CURL_EXIT_CODE=$?
 
 # Clean up temporary file

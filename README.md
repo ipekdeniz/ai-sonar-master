@@ -1,73 +1,63 @@
-# Sonar Issue Analyzer
+# Sonar Analyzer
 
-Bu proje, Sonar'dan alınan kod kalitesi sorunlarını Ollama AI modeli kullanarak analiz eder ve çözüm önerileri sunar.
+A tool that analyzes SonarQube issues and provides AI-generated solutions using Ollama.
 
-## Gereksinimler
+## Features
 
-- Node.js (v14 veya üzeri)
-- SonarQube/SonarCloud hesabı ve API token'ı
-- Ollama kurulumu ve çalışır durumda olması
+- Analyzes SonarQube issues
+- Generates AI-powered solutions using Ollama
+- Creates detailed HTML reports
+- Supports multiple issue types
+- Real-time analysis progress updates
 
-## Kurulum
+## Prerequisites
 
-1. Projeyi klonlayın:
+- Node.js (v14 or higher)
+- SonarQube instance
+- Ollama instance with CodeLlama model
+
+## Setup
+
+1. Clone the repository:
 ```bash
-git clone [repo-url]
+git clone https://github.com/yourusername/sonar-analyzer.git
 cd sonar-analyzer
 ```
 
-2. Bağımlılıkları yükleyin:
+2. Install dependencies:
 ```bash
 npm install
 ```
 
-3. `.env` dosyasını oluşturun ve aşağıdaki değişkenleri ayarlayın:
+3. Set your SonarQube token in `.env` file:
 ```
-SONAR_HOST=http://localhost:9000
 SONAR_TOKEN=your_sonar_token
-OLLAMA_HOST=http://localhost:11434
-OLLAMA_MODEL=codellama
+SONAR_URL=http://your-sonar-url
+OLLAMA_URL=http://your-ollama-url
 ```
 
-## Kullanım
-
-1. Uygulamayı başlatın:
+4. Start the application:
 ```bash
 npm start
 ```
 
-2. API'yi kullanın:
+5. Pull the CodeLlama model in Ollama:
 ```bash
-curl -X POST http://localhost:3000/analyze \
-  -H "Content-Type: application/json" \
-  -d '{"projectKey": "your-project-key"}'
+curl -X POST http://localhost:11434/api/pull -d '{"name": "codellama"}'
 ```
 
-## API Endpoint
+## Usage
 
-### POST /analyze
+1. Open your browser and navigate to `http://localhost:3000`
+2. Enter your SonarQube project key
+3. Select issue types to analyze
+4. Click "Analyze" to start the analysis
+5. View the generated reports in the results directory
 
-Sonar projesindeki issue'ları analiz eder ve Ollama modelinden çözüm önerileri alır.
+## API Documentation
 
-**Request Body:**
-```json
-{
-  "projectKey": "your-project-key"
-}
-```
+API documentation is available at `http://localhost:3000/api-docs` when the server is running.
 
-**Response:**
-```json
-[
-  {
-    "issue": {
-      "type": "BUG",
-      "severity": "MAJOR",
-      "message": "Issue description",
-      "component": "file:path",
-      "line": 42
-    },
-    "solution": "AI generated solution..."
-  }
-]
-``` 
+## License
+
+MIT 

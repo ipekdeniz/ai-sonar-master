@@ -1,25 +1,23 @@
 const express = require('express');
 const router = express.Router();
-const sonarService = require('../services/sonarService');
-const ollamaService = require('../services/ollamaService');
-const { getIssueDirectory, ensureDirectoryExists } = require('../utils/fileUtils');
-const { generateHtmlReport, generateHtmlTemplate } = require('../utils/htmlUtils');
-const { VALID_ISSUE_TYPES, PATHS } = require('../config/constants');
-const path = require('path');
+const analyzerService = require('../services/analyzerService');
+const { PATHS } = require('../config/constants');
 const archiver = require('archiver');
 const fs = require('fs');
-const { analyzeIssues } = require('../services/analyzerService');
 
 /**
  * Sends an event to the client through the event stream
  * @param {Response} res - Express response object
- * @param {string} type - Event type
  * @param {object} data - Event data
  */
-function sendEvent(res, type, data) {
+function sendEvent(res, data) {
     try {
-        const payload = { type, ...data };
-        res.write(`data: ${JSON.stringify(payload)}\n\n`);
+        // Extract event type
+        const eventType = data.type;
+        
+        // Send proper SSE format with event and data
+        res.write(`event: ${eventType}\n`);
+        res.write(`data: ${JSON.stringify(data)}\n\n`);
     } catch (error) {
         console.error('Error sending event:', error);
     }
@@ -56,12 +54,6 @@ router.post('/analyze', async (req, res) => {
     }
 
     try {
-        // Clean results directory
-        const resultsDir = path.join(__dirname, '../../results', projectKey);
-        if (fs.existsSync(resultsDir)) {
-            fs.rmSync(resultsDir, { recursive: true, force: true });
-        }
-
         // Set headers for streaming response
         res.setHeader('Content-Type', 'text/event-stream');
         res.setHeader('Cache-Control', 'no-cache');
@@ -69,112 +61,45 @@ router.post('/analyze', async (req, res) => {
         res.setHeader('X-Accel-Buffering', 'no');
 
         // Send initial response
-        sendEvent(res, 'started', {});
+        sendEvent(res, { type: 'started' });
 
-        // Get issues from Sonar
-        console.log('Fetching issues...');
-        const issues = await sonarService.getIssues(projectKey, issueKey, issueTypes);
-        console.log(`Found ${issues.length} issues`);
-        
-        if (issues.length === 0) {
-            sendEvent(res, 'complete', {
-                totalIssues: 0,
-                analyzedIssues: 0,
-                errors: [],
-                message: 'No issues found for the given criteria'
-            });
-            return res.end();
-        }
-        
-        // Send total issue count
-        sendEvent(res, 'progress', {
-            current: 0,
-            total: issues.length,
-            currentIssueKey: issues.length > 0 ? issues[0].key : null,
-            message: `Processing issue: ${issues[0].key}`
-        });
+        // Convert issueTypes to array if it's a string
+        const issueTypesArray = typeof issueTypes === 'string' ? 
+            issueTypes.split(',').map(type => type.trim()) : 
+            Array.isArray(issueTypes) ? issueTypes : [];
 
-        let analyzedCount = 0;
-        const errors = [];
-
-        // Analyze each issue separately
-        for (const issue of issues) {
-            try {
-                console.log(`Processing issue: ${issue.key}`);
-                
-                // Get solution from Ollama
-                const solution = await ollamaService.analyzeIssue(issue);
-                console.log(`Got solution for issue: ${issue.key}`);
-
-                // Add solution to the issue
-                issue.solution = solution;
-
-                // Create report directory
-                const issueDir = path.join(resultsDir, issue.key);
-                ensureDirectoryExists(issueDir);
-
-                // Generate and save HTML report
-                const reportPath = path.join(issueDir, 'report.html');
-                const htmlContent = generateHtmlReport(issue);
-                fs.writeFileSync(reportPath, htmlContent);
-
-                // Send issue processed information
-                sendEvent(res, 'issueProcessed', {
-                    issueKey: issue.key,
-                    status: 'success',
-                    details: {
-                        type: issue.type,
-                        severity: issue.severity,
-                        component: issue.component,
-                        line: issue.line,
-                        solution: solution
-                    }
-                });
-                
-                console.log(`Issue processed: ${issue.key}`);
-                analyzedCount++;
-            } catch (error) {
-                console.error(`Error processing issue ${issue.key}:`, error);
-                errors.push({
-                    issueKey: issue.key,
-                    error: error.message
-                });
-
-                // Send error information
-                sendEvent(res, 'error', {
-                    issueKey: issue.key,
-                    message: error.message
-                });
+        // Start analysis with progress callback
+        const result = await analyzerService.analyzeIssues(
+            projectKey, 
+            issueKey, 
+            issueTypesArray,
+            (eventData) => {
+                // Send all event types directly
+                sendEvent(res, eventData);
             }
-
-            // Send progress information
-            const nextIndex = analyzedCount < issues.length ? analyzedCount : issues.length - 1;
-            const nextKey = nextIndex >= 0 && nextIndex < issues.length ? issues[nextIndex].key : null;
-            
-            sendEvent(res, 'progress', {
-                current: analyzedCount,
-                total: issues.length,
-                currentIssueKey: nextKey,
-                message: analyzedCount < issues.length ? 
-                    `Processing issue: ${nextKey}` : 'Processing complete'
-            });
-        }
+        );
 
         // Send final information when process is complete
-        sendEvent(res, 'complete', {
-            totalIssues: issues.length,
-            analyzedIssues: analyzedCount,
-            errors: errors,
-            message: `Completed analyzing ${analyzedCount} out of ${issues.length} issues`
+        sendEvent(res, {
+            type: 'complete',
+            ...result
         });
 
-        res.end();
+        // Give some time for events to be transmitted
+        setTimeout(() => {
+            res.end();
+        }, 1000);
     } catch (error) {
         console.error('Error in analyze endpoint:', error);
-        sendEvent(res, 'error', {
+        sendEvent(res, {
+            type: 'error',
             message: error.message
         });
-        res.end();
+        
+        // End response after a short delay
+        setTimeout(() => {
+            res.end();
+        }, 1000);
     }
 });
 
